@@ -1,0 +1,315 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STUDY TRACKER</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>STUDY TRACKER</h1>
+            <p>나의 공부 시간을 기록하고 관리해 보세요.</p>
+        </header>
+
+        <section class="card">
+            <h2>📚 학습 기록하기</h2>
+
+            <label for="date">공부 날짜</label>
+            <input type="date" id="date">
+
+            <label for="subject">과목</label>
+            <select id="subject">
+                <option value="">과목을 선택하세요</option>
+                <option>국어</option>
+                <option>수학</option>
+                <option>영어</option>
+                <option>과학</option>
+                <option>사회</option>
+                <option>한국사</option>
+                <option>정보</option>
+                <option>체육</option>
+                <option>음악</option>
+                <option>미술</option>
+                <option>기술·가정</option>
+                <option>한문</option>
+                <option>제2외국어</option>
+                <option>진로와 직업</option>
+            </select>
+
+            <label for="time">공부 시간 (분)</label>
+            <input type="number" id="time" min="1" placeholder="예: 60">
+
+            <button onclick="saveRecord()">기록 저장하기</button>
+        </section>
+
+        <section class="card">
+            <h2>📝 나의 학습 기록</h2>
+            <p>총 공부 시간</p>
+            <p id="totalTime">0분</p>
+            <ul id="recordList"></ul>
+            <button class="delete-all-button" onclick="deleteAllRecords()">
+                전체 기록 삭제
+            </button>
+        </section>
+
+        <section class="card">
+            <h2>📊 과목별 학습 통계</h2>
+            <div id="subjectStats"></div>
+        </section>
+
+        <section class="card">
+            <h2>📅 날짜별 학습 통계</h2>
+            <div id="dateStats"></div>
+        </section>
+
+        <section class="card">
+            <h2>📈 이번 주 학습 통계</h2>
+            <p class="week-description" id="weekPeriod"></p>
+
+            <div class="weekly-total">
+                <p>이번 주 총 공부 시간</p>
+                <strong id="weeklyTotal">0분</strong>
+            </div>
+
+            <h3>요일별 공부 시간</h3>
+            <div id="weeklyStats"></div>
+        </section>
+
+        <footer>
+            <p>STUDY TRACKER | 나만의 학습 관리 시스템</p>
+        </footer>
+    </div>
+
+    <script>
+        let records = JSON.parse(localStorage.getItem("studyRecords")) || [];
+
+        // 오늘 날짜를 YYYY-MM-DD 형식으로 반환
+        function getToday() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, "0");
+            const day = String(today.getDate()).padStart(2, "0");
+
+            return `${year}-${month}-${day}`;
+        }
+
+        document.getElementById("date").value = getToday();
+
+        // 날짜 문자열을 현지 날짜로 변환
+        function parseLocalDate(dateString) {
+            const [year, month, day] = dateString.split("-").map(Number);
+            return new Date(year, month - 1, day);
+        }
+
+        // 데이터를 LocalStorage에 저장
+        function saveData() {
+            localStorage.setItem("studyRecords", JSON.stringify(records));
+        }
+
+        // 학습 기록 추가
+        function saveRecord() {
+            const date = document.getElementById("date").value;
+            const subject = document.getElementById("subject").value;
+            const time = Number(document.getElementById("time").value);
+
+            if (!date || !subject || !time || time < 1) {
+                alert("날짜, 과목, 공부 시간을 올바르게 입력해 주세요.");
+                return;
+            }
+
+            records.push({
+                date: date,
+                subject: subject,
+                time: time
+            });
+
+            saveData();
+
+            document.getElementById("subject").value = "";
+            document.getElementById("time").value = "";
+
+            displayRecords();
+            alert("학습 기록이 저장되었습니다!");
+        }
+
+        // 학습 기록 삭제
+        function deleteRecord(index) {
+            if (confirm("이 기록을 삭제할까요?")) {
+                records.splice(index, 1);
+                saveData();
+                displayRecords();
+            }
+        }
+
+        // 전체 기록 삭제
+        function deleteAllRecords() {
+            if (records.length === 0) {
+                alert("삭제할 기록이 없습니다.");
+                return;
+            }
+
+            if (confirm("모든 학습 기록을 삭제할까요?")) {
+                records = [];
+                saveData();
+                displayRecords();
+            }
+        }
+
+        // 전체 기록과 통계 화면 표시
+        function displayRecords() {
+            const recordList = document.getElementById("recordList");
+            const subjectStats = document.getElementById("subjectStats");
+            const dateStats = document.getElementById("dateStats");
+
+            recordList.innerHTML = "";
+            subjectStats.innerHTML = "";
+            dateStats.innerHTML = "";
+
+            let total = 0;
+            const subjectTimes = {};
+            const dateTimes = {};
+
+            records.forEach((record, index) => {
+                total += record.time;
+
+                subjectTimes[record.subject] =
+                    (subjectTimes[record.subject] || 0) + record.time;
+
+                dateTimes[record.date] =
+                    (dateTimes[record.date] || 0) + record.time;
+
+                const li = document.createElement("li");
+                const info = document.createElement("span");
+                const deleteButton = document.createElement("button");
+
+                info.textContent =
+                    `${record.date} | ${record.subject} | ${record.time}분`;
+
+                deleteButton.textContent = "삭제";
+                deleteButton.className = "delete-button";
+                deleteButton.onclick = () => deleteRecord(index);
+
+                li.appendChild(info);
+                li.appendChild(deleteButton);
+                recordList.appendChild(li);
+            });
+
+            document.getElementById("totalTime").textContent =
+                total.toLocaleString() + "분";
+
+            // 과목별 통계
+            const maxSubjectTime = Math.max(0, ...Object.values(subjectTimes));
+
+            for (const subject in subjectTimes) {
+                const time = subjectTimes[subject];
+                const percent = maxSubjectTime
+                    ? (time / maxSubjectTime) * 100
+                    : 0;
+
+                subjectStats.innerHTML += `
+                    <div class="stat-item">
+                        <div class="stat-title">
+                            <span>${subject}</span>
+                            <span>${time}분</span>
+                        </div>
+                        <div class="progress-bg">
+                            <div class="progress-bar" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 날짜별 통계
+            const sortedDates = Object.keys(dateTimes).sort().reverse();
+
+            sortedDates.forEach(date => {
+                dateStats.innerHTML += `
+                    <p class="date-stat">
+                        ${date} : <strong>${dateTimes[date]}분</strong>
+                    </p>
+                `;
+            });
+
+            if (records.length === 0) {
+                recordList.innerHTML = "<li>아직 기록이 없습니다.</li>";
+                subjectStats.innerHTML = "<p>아직 통계가 없습니다.</p>";
+                dateStats.innerHTML = "<p>아직 통계가 없습니다.</p>";
+            }
+
+            displayWeeklyStats();
+        }
+
+        // 이번 주 월요일부터 일요일까지의 통계
+        function displayWeeklyStats() {
+            const today = parseLocalDate(getToday());
+            const dayOfWeek = today.getDay();
+
+            // 이번 주 월요일 구하기
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+            const weekDays = ["월", "화", "수", "목", "금", "토", "일"];
+            const weeklyTimes = [0, 0, 0, 0, 0, 0, 0];
+
+            let weeklyTotal = 0;
+
+            // 각 기록이 이번 주에 해당하는지 확인
+            records.forEach(record => {
+                const recordDate = parseLocalDate(record.date);
+                const difference = Math.round(
+                    (recordDate - monday) / (1000 * 60 * 60 * 24)
+                );
+
+                if (difference >= 0 && difference < 7) {
+                    weeklyTimes[difference] += record.time;
+                    weeklyTotal += record.time;
+                }
+            });
+
+            // 주간 날짜 범위 표시
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+
+            const formatDate = date => {
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            };
+
+            document.getElementById("weekPeriod").textContent =
+                `${formatDate(monday)} ~ ${formatDate(sunday)}`;
+
+            document.getElementById("weeklyTotal").textContent =
+                weeklyTotal.toLocaleString() + "분";
+
+            // 요일별 막대그래프
+            const weeklyStats = document.getElementById("weeklyStats");
+            weeklyStats.innerHTML = "";
+
+            const maxTime = Math.max(0, ...weeklyTimes);
+
+            weekDays.forEach((day, index) => {
+                const time = weeklyTimes[index];
+                const percent = maxTime > 0 ? (time / maxTime) * 100 : 0;
+
+                weeklyStats.innerHTML += `
+                    <div class="weekly-item">
+                        <div class="weekly-label">
+                            <span>${day}요일</span>
+                            <strong>${time}분</strong>
+                        </div>
+                        <div class="progress-bg weekly-progress">
+                            <div class="progress-bar"
+                                 style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 처음 화면을 열 때 기록 표시
+        displayRecords();
+    </script>
+</body>
+</html>
